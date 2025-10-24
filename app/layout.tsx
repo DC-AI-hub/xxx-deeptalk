@@ -6,6 +6,10 @@ import { ApplyThemeScript, ThemeToggle } from '@/components/theme-toggle';
 import { getAppConfig } from '@/lib/utils';
 import './globals.css';
 
+// 新增：AuthProvider（client component）
+// 确保你已在项目中添加 components/AuthProvider.tsx 并 export { AuthProvider }
+import { AuthProvider } from '@/components/AuthProvider';
+
 const publicSans = Public_Sans({
   variable: '--font-public-sans',
   subsets: ['latin'],
@@ -69,7 +73,9 @@ export default async function RootLayout({ children }: RootLayoutProps) {
       <body
         className={`${publicSans.variable} ${commitMono.variable} overflow-x-hidden antialiased`}
       >
-        {children}
+        {/* 把 AuthProvider 包裹整个 children，使全局可访问登录状态 */}
+        <AuthProvider>{children}</AuthProvider>
+
         <div className="group fixed bottom-0 left-1/2 z-50 mb-2 -translate-x-1/2">
           <ThemeToggle className="translate-y-20 transition-transform delay-150 duration-300 group-hover:translate-y-0" />
         </div>

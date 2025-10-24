@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { decodeJwt } from 'jose';
 import { ConnectionDetails } from '@/app/api/connection-details/route';
 import { AppConfig } from '@/lib/types';
@@ -6,53 +6,55 @@ import { AppConfig } from '@/lib/types';
 const ONE_MINUTE_IN_MILLISECONDS = 60 * 1000;
 
 export default function useConnectionDetails(appConfig: AppConfig) {
-  // Generate room connection details, including:
-  //   - A random Room name
-  //   - A random Participant name
-  //   - An Access Token to permit the participant to join the room
-  //   - The URL of the LiveKit server to connect to
-  //
-  // In real-world application, you would likely allow the user to specify their
-  // own participant name, and possibly to choose from existing rooms to join.
-
   const [connectionDetails, setConnectionDetails] = useState<ConnectionDetails | null>(null);
 
   const fetchConnectionDetails = useCallback(async () => {
     setConnectionDetails(null);
-    const url = new URL(
-      process.env.NEXT_PUBLIC_CONN_DETAILS_ENDPOINT ?? '/api/connection-details',
-      window.location.origin
-    );
+    const endpoint = process.env.NEXT_PUBLIC_CONN_DETAILS_ENDPOINT ?? '/api/connection-details';
+    const url = new URL(endpoint, window.location.origin);
 
     let data: ConnectionDetails;
     try {
       const res = await fetch(url.toString(), {
         method: 'POST',
+        credentials: 'include', // ensure cookies (dt_uid/dt_uid_sig) are sent when present
         headers: {
           'Content-Type': 'application/json',
           'X-Sandbox-Id': appConfig.sandboxId ?? '',
         },
         body: JSON.stringify({
-          room_config: appConfig.agentName
-            ? {
-                agents: [{ agent_name: appConfig.agentName }],
-              }
-            : undefined,
+          participantName: appConfig.startButtonText ?? 'user',
+          agentName: appConfig.agentName,
+          room: '123',
+          language: 'yue',
+          vlice: '小白'
         }),
       });
+
+      if (!res.ok) {
+        // robust error parsing
+        let errBody: any = {};
+        try {
+          errBody = await res.json();
+        } catch {
+          const txt = await res.text();
+          errBody = { error: txt || `HTTP ${res.status}` };
+        }
+        throw new Error(errBody?.error ?? `HTTP ${res.status}`);
+      }
+
       data = await res.json();
     } catch (error) {
       console.error('Error fetching connection details:', error);
-      throw new Error('Error fetching connection details!');
+      throw error;
     }
 
     setConnectionDetails(data);
     return data;
-  }, []);
+  }, [appConfig]);
 
-  useEffect(() => {
-    fetchConnectionDetails();
-  }, [fetchConnectionDetails]);
+  // remove the automatic useEffect that fetched on mount;
+  // caller (e.g. App) should call fetchConnectionDetails() when user clicks Start
 
   const isConnectionDetailsExpired = useCallback(() => {
     const token = connectionDetails?.participantToken;
@@ -80,7 +82,8 @@ export default function useConnectionDetails(appConfig: AppConfig) {
 
   return {
     connectionDetails,
-    refreshConnectionDetails: fetchConnectionDetails,
+    fetchConnectionDetails,
     existingOrRefreshConnectionDetails,
+    isConnectionDetailsExpired,
   };
 }
