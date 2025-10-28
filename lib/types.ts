@@ -19,6 +19,8 @@ export interface AppConfig {
 
   logo: string;
   startButtonText: string;
+  startButtonTextLeft?: string;
+  startButtonTextRight?: string;
   accent?: string;
   logoDark?: string;
   accentDark?: string;
