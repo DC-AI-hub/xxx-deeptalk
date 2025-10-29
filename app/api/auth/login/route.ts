@@ -64,11 +64,31 @@ export async function POST(req: Request) {
       // success: set readable cookies dt_uid & dt_uid_sig and return JSON
       const resp = NextResponse.json({ ok: true, uuid, name });
 
-      const cookieBase = `Path=/; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
       const uidSig = signUid(uuid);
+      const maxAge = Number(process.env.AUTH_MAX_AGE_SECONDS || 60 * 60 * 12); // default 12 hours
+      const cookieDomain = process.env.AUTH_COOKIE_DOMAIN;
 
-      resp.headers.append('Set-Cookie', `dt_uid=${encodeURIComponent(uuid)}; ${cookieBase}`);
-      resp.headers.append('Set-Cookie', `dt_uid_sig=${encodeURIComponent(uidSig)}; ${cookieBase}`);
+      const cookieOptions: {
+        httpOnly: boolean;
+        sameSite: 'lax';
+        path: string;
+        secure: boolean;
+        maxAge: number;
+        domain?: string;
+      } = {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge,
+      };
+
+      if (cookieDomain) {
+        cookieOptions.domain = cookieDomain;
+      }
+
+      resp.cookies.set('dt_uid', uuid, cookieOptions);
+      resp.cookies.set('dt_uid_sig', uidSig, cookieOptions);
 
       return resp;
     } finally {

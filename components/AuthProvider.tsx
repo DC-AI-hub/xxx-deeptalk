@@ -55,8 +55,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    // 预留：如果后端有 logout 路由，这里调用；目前前端可提示清 cookie 或让后端补充 /api/auth/logout
-    setUser(null);
+    try {
+      await fetchJson('/api/auth/logout', { method: 'POST' });
+    } finally {
+      setUser(null);
+    }
   };
 
   useEffect(() => {

@@ -25,49 +25,49 @@ export default function LoginModal() {
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 9999,
-      }}
-    >
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <form
         onSubmit={onSubmit}
-        style={{
-          width: 360,
-          background: '#fff',
-          borderRadius: 8,
-          padding: 24,
-          boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
-        }}
+        className="w-full max-w-sm rounded-2xl border border-gray-200/20 bg-white/60 p-6 shadow-2xl backdrop-blur-xl dark:border-zinc-700/30 dark:bg-zinc-900/40"
       >
-        <h3 style={{ margin: '0 0 16px' }}>用户登录</h3>
-        <label style={{ display: 'block', marginBottom: 8 }}>
-          用户名（邮箱或手机）
+        <h3 className="mb-4 text-xl font-semibold text-gray-900 dark:text-white">用户登录</h3>
+
+        <label className="mb-3 block">
+          <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            用户名（邮箱或手机）
+          </span>
           <input
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="请输入邮箱或手机"
-            style={{ width: '100%', marginTop: 4 }}
+            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder-gray-500 dark:focus:border-blue-400"
           />
         </label>
-        <label style={{ display: 'block', marginBottom: 8 }}>
-          密码
+
+        <label className="mb-4 block">
+          <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            密码
+          </span>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="请输入密码"
-            style={{ width: '100%', marginTop: 4 }}
+            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder-gray-500 dark:focus:border-blue-400"
           />
         </label>
-        {msg && <div style={{ color: '#c00', marginBottom: 8 }}>{msg}</div>}
-        <button type="submit" disabled={submitting} style={{ width: '100%', padding: '8px 12px' }}>
+
+        {msg && (
+          <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">
+            {msg}
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={submitting}
+          className="w-full rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600"
+        >
           {submitting ? '登录中...' : '登录'}
         </button>
       </form>

@@ -1,6 +1,9 @@
+'use client';
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useAuth } from './AuthProvider';
 
 interface WelcomeProps {
   disabled: boolean;
@@ -27,6 +30,7 @@ export const Welcome = ({
   onStartCall,
   ref,
 }: React.ComponentProps<'div'> & WelcomeProps) => {
+  const { logout } = useAuth();
   // 前端显示用的中文选项（保持不变）
   const [languageDisplay, setLanguageDisplay] = useState<string>('普通话');
 
@@ -149,14 +153,16 @@ export const Welcome = ({
 
       <footer className="fixed bottom-5 left-0 z-20 flex w-full items-center justify-center">
         <p className="text-fg1 max-w-prose pt-1 text-xs leading-5 font-normal text-pretty md:text-sm">
-          需要重新登录？请跳转至{' '}
+          需要切换账号？{' '}
           <a
-            target="_blank"
-            rel="noopener noreferrer"
-            href="https://deeptalk.dingchicrm.com"
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              logout();
+            }}
             className="underline"
           >
-            Yue Voice AI quickstart
+            切换账号
           </a>
           .
         </p>
