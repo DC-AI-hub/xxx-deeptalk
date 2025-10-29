@@ -164,7 +164,8 @@ export const Welcome = ({
           >
             切换账号
           </a>
-          .
+        </p>
+      </footer>
         </p>
       </footer>
     </section>
