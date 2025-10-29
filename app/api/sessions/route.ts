@@ -74,18 +74,28 @@ export type ConnectionDetails = {
 export async function POST(req: Request) {
   try {
     if (!LIVEKIT_URL || !API_KEY || !API_SECRET) {
-      return NextResponse.json({ error: 'LiveKit configuration missing (LIVEKIT_URL/API_KEY/API_SECRET).' }, { status: 500 });
+      return NextResponse.json(
+        { error: 'LiveKit configuration missing (LIVEKIT_URL/API_KEY/API_SECRET).' },
+        { status: 500 }
+      );
     }
     if (!MYSQL_HOST || !MYSQL_USER || !MYSQL_DATABASE) {
-      return NextResponse.json({ error: 'MySQL configuration missing (MYSQL_HOST/MYSQL_USER/MYSQL_DATABASE).' }, { status: 500 });
+      return NextResponse.json(
+        { error: 'MySQL configuration missing (MYSQL_HOST/MYSQL_USER/MYSQL_DATABASE).' },
+        { status: 500 }
+      );
     }
 
-    const body = await req.json().catch(() => ({} as any));
+    const body = await req.json().catch(() => ({}) as any);
 
     // 1) prefer body uid/uidSig; 2) fallback to cookies
     const cookies = parseCookie(req.headers.get('cookie'));
-    const uid = typeof body?.uid === 'string' && body.uid.trim() ? body.uid.trim() : cookies['dt_uid'];
-    const uidSig = typeof body?.uidSig === 'string' && body.uidSig.trim() ? body.uidSig.trim() : cookies['dt_uid_sig'];
+    const uid =
+      typeof body?.uid === 'string' && body.uid.trim() ? body.uid.trim() : cookies['dt_uid'];
+    const uidSig =
+      typeof body?.uidSig === 'string' && body.uidSig.trim()
+        ? body.uidSig.trim()
+        : cookies['dt_uid_sig'];
 
     if (!uid) {
       console.warn('POST /api/sessions: missing uid (cookies/body).');

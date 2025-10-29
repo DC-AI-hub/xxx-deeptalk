@@ -3,11 +3,6 @@ import { AccessToken, type AccessTokenOptions, type VideoGrant } from 'livekit-s
 import { RoomConfiguration } from '@livekit/protocol';
 import { verifyUid } from '../../lib/uid-sign';
 
-const API_KEY = process.env.LIVEKIT_API_KEY;
-const API_SECRET = process.env.LIVEKIT_API_SECRET;
-const LIVEKIT_URL = process.env.LIVEKIT_URL;
-
-// don't cache the results
 export const revalidate = 0;
 
 export type ConnectionDetails = {
@@ -16,6 +11,19 @@ export type ConnectionDetails = {
   participantName: string;
   participantToken: string;
 };
+
+/**
+ * Normalize a key for looking up env vars / json mapping:
+ * - input like "yuting", "yue", "yuting_yue" -> returns uppercased safe token
+ */
+function normalizeKey(s?: string) {
+  if (!s) return '';
+  return s
+    .toString()
+    .trim()
+    .replace(/[^A-Za-z0-9_]/g, '_')
+    .toUpperCase();
+}
 
 function normalizeRoomFromUuid(uuid: string, prefix = 'voice_assistant_') {
   const cleaned = (uuid || '').replace(/[^A-Za-z0-9_-]/g, '_');
@@ -34,21 +42,89 @@ function parseCookie(header: string | null): Record<string, string> {
   return out;
 }
 
+/**
+ * Resolve credentials for a given voice+language key.
+ *
+ * Strategy (in order):
+ * 1) If env LIVEKIT_CREDENTIALS_JSON is set and contains an object mapping,
+ *    try map[<voice>_<language>] then map[<voice>], then map["default"].
+ *    Each entry expected: { url, apiKey, apiSecret }
+ * 2) Try per-key env variables:
+ *    LIVEKIT_URL_<KEY>, LIVEKIT_API_KEY_<KEY>, LIVEKIT_API_SECRET_<KEY>
+ *    where KEY is normalized uppercased token like YUTING_YUE or YUTING
+ * 3) Fallback to top-level LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET
+ */
+function getCredentialsFor(voice?: string, language?: string) {
+  const keyCombo = normalizeKey(`${voice ?? ''}_${language ?? ''}`); // YUTING_YUE
+  const keyVoice = normalizeKey(voice); // YUTING
+
+  // 1) JSON mapping env (recommended for many combos)
+  const jsonEnv = process.env.LIVEKIT_CREDENTIALS_JSON;
+  if (jsonEnv) {
+    try {
+      const map = JSON.parse(jsonEnv);
+      if (map && typeof map === 'object') {
+        // prefer exact voice_language
+        if (keyCombo && map[keyCombo]) {
+          const entry = map[keyCombo];
+          if (entry.url && entry.apiKey && entry.apiSecret) {
+            return { url: entry.url, apiKey: entry.apiKey, apiSecret: entry.apiSecret };
+          }
+        }
+        // then try voice-only
+        if (keyVoice && map[keyVoice]) {
+          const entry = map[keyVoice];
+          if (entry.url && entry.apiKey && entry.apiSecret) {
+            return { url: entry.url, apiKey: entry.apiKey, apiSecret: entry.apiSecret };
+          }
+        }
+        // optional default
+        if (map['DEFAULT'] || map['default']) {
+          const entry = map['DEFAULT'] || map['default'];
+          if (entry.url && entry.apiKey && entry.apiSecret) {
+            return { url: entry.url, apiKey: entry.apiKey, apiSecret: entry.apiSecret };
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('LIVEKIT_CREDENTIALS_JSON parse error', (err as Error).message);
+    }
+  }
+
+  // 2) Per-key env vars (legacy/simple)
+  if (keyCombo) {
+    const url = process.env[`LIVEKIT_URL_${keyCombo}`];
+    const apiKey = process.env[`LIVEKIT_API_KEY_${keyCombo}`];
+    const apiSecret = process.env[`LIVEKIT_API_SECRET_${keyCombo}`];
+    if (url && apiKey && apiSecret) return { url, apiKey, apiSecret };
+  }
+  if (keyVoice) {
+    const url = process.env[`LIVEKIT_URL_${keyVoice}`];
+    const apiKey = process.env[`LIVEKIT_API_KEY_${keyVoice}`];
+    const apiSecret = process.env[`LIVEKIT_API_SECRET_${keyVoice}`];
+    if (url && apiKey && apiSecret) return { url, apiKey, apiSecret };
+  }
+
+  // 3) Fallback to default envs
+  if (process.env.LIVEKIT_URL && process.env.LIVEKIT_API_KEY && process.env.LIVEKIT_API_SECRET) {
+    return {
+      url: process.env.LIVEKIT_URL,
+      apiKey: process.env.LIVEKIT_API_KEY,
+      apiSecret: process.env.LIVEKIT_API_SECRET,
+    };
+  }
+
+  return null;
+}
+
 export async function POST(req: Request) {
   try {
-    if (!LIVEKIT_URL) {
-      return NextResponse.json({ error: 'LIVEKIT_URL is not defined' }, { status: 500 });
-    }
-    if (!API_KEY) {
-      return NextResponse.json({ error: 'LIVEKIT_API_KEY is not defined' }, { status: 500 });
-    }
-    if (!API_SECRET) {
-      return NextResponse.json({ error: 'LIVEKIT_API_SECRET is not defined' }, { status: 500 });
+    if (!process.env) {
+      return NextResponse.json({ error: 'Server environment not available' }, { status: 500 });
     }
 
-    const body = await req.json().catch(() => ({} as any));
+    const body = await req.json().catch(() => ({}) as any);
 
-    // 支持新参数；兼容旧的 agentName 读取方式（room_config.agents[0].agent_name）
     const {
       participantName: participantNameFromBody,
       participantId: participantIdFromBody,
@@ -57,15 +133,24 @@ export async function POST(req: Request) {
       agentName: agentNameFromBody,
       uid: uidFromBody,
       uidSig: uidSigFromBody,
+      voice: voiceFromBody,
+      language: languageFromBody,
+      // optional: allow caller to hint a specific credential key (e.g. "yuting_yue")
+      credentialKey: credentialKeyFromBody,
     } = body ?? {};
 
     // read uid/uidSig from cookies as fallback
     const cookies = parseCookie(req.headers.get('cookie'));
-    const uid = typeof uidFromBody === 'string' && uidFromBody.trim() ? uidFromBody.trim() : cookies['dt_uid'];
-    const uidSig = typeof uidSigFromBody === 'string' && uidSigFromBody.trim() ? uidSigFromBody.trim() : cookies['dt_uid_sig'];
+    const uid =
+      typeof uidFromBody === 'string' && uidFromBody.trim()
+        ? uidFromBody.trim()
+        : cookies['dt_uid'];
+    const uidSig =
+      typeof uidSigFromBody === 'string' && uidSigFromBody.trim()
+        ? uidSigFromBody.trim()
+        : cookies['dt_uid_sig'];
 
     if (!uid) {
-      // 返回 JSON 错误体（前端统一按 JSON 解析）
       console.warn('POST /api/connection-details: missing uid (cookies/body).');
       return NextResponse.json({ error: 'Missing uid' }, { status: 400 });
     }
@@ -74,7 +159,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid uid signature' }, { status: 401 });
     }
 
-    // 固定房间：由 uid 派生；忽略外部传入的 roomName
+    // fixed room derived from uid
     const roomName = normalizeRoomFromUuid(uid);
 
     const participantName =
@@ -87,19 +172,19 @@ export async function POST(req: Request) {
         ? participantIdFromBody.trim()
         : uid;
 
-    // metadata 支持字符串或对象
-    let metadata: string | undefined;
+    // metadata parsing (optional JSON/object)
+    let providedMetadata: any = undefined;
     if (typeof metadataFromBody === 'string') {
-      metadata = metadataFromBody;
-    } else if (metadataFromBody && typeof metadataFromBody === 'object') {
       try {
-        metadata = JSON.stringify(metadataFromBody);
+        providedMetadata = JSON.parse(metadataFromBody);
       } catch {
-        return NextResponse.json({ error: 'Invalid metadata object' }, { status: 400 });
+        providedMetadata = { info: metadataFromBody };
       }
+    } else if (metadataFromBody && typeof metadataFromBody === 'object') {
+      providedMetadata = metadataFromBody;
     }
 
-    // attributes：仅允许字符串键值
+    // attributes from body (strings only)
     let attributes: Record<string, string> | undefined;
     if (attributesFromBody && typeof attributesFromBody === 'object') {
       const out: Record<string, string> = {};
@@ -113,23 +198,85 @@ export async function POST(req: Request) {
       typeof agentNameFromBody === 'string' && agentNameFromBody.trim().length > 0
         ? agentNameFromBody.trim()
         : (body?.room_config?.agents?.[0]?.agent_name as string | undefined);
-    
-    const new_metadata = JSON.stringify({voice: 'xiaobai'});
+
+    // Resolve voice & language (expect english code from frontend)
+    const voice =
+      typeof voiceFromBody === 'string' && voiceFromBody.trim() ? voiceFromBody.trim() : 'default';
+    const language =
+      typeof languageFromBody === 'string' && languageFromBody.trim()
+        ? languageFromBody.trim()
+        : 'mandarin';
+
+    // Merge/prepare metadata (do not use for voice/language control now)
+    const mergedMetadata: Record<string, unknown> = {};
+    if (providedMetadata && typeof providedMetadata === 'object') {
+      Object.assign(mergedMetadata, providedMetadata);
+    }
+    const finalMetadata =
+      Object.keys(mergedMetadata).length > 0 ? JSON.stringify(mergedMetadata) : undefined;
+
+    // Ensure attributes exist and inject language and voice
+    if (!attributes) attributes = {};
+    attributes.language = language;
+    attributes.voice = voice;
+
+    // Determine credential lookup key: allow explicit credentialKeyFromBody as highest priority
+    let creds = null;
+    if (
+      credentialKeyFromBody &&
+      typeof credentialKeyFromBody === 'string' &&
+      credentialKeyFromBody.trim()
+    ) {
+      // try direct credentialKey (e.g. "YUTING_YUE" or "yuting_yue")
+      const explicitKey = credentialKeyFromBody.trim();
+      const normalizedExplicit = normalizeKey(explicitKey);
+      // try JSON mapping first then per-env
+      const jsonEnv = process.env.LIVEKIT_CREDENTIALS_JSON;
+      if (jsonEnv) {
+        try {
+          const map = JSON.parse(jsonEnv);
+          if (map && (map[normalizedExplicit] || map[normalizedExplicit.toLowerCase()])) {
+            const entry = map[normalizedExplicit] || map[normalizedExplicit.toLowerCase()];
+            if (entry.url && entry.apiKey && entry.apiSecret)
+              creds = { url: entry.url, apiKey: entry.apiKey, apiSecret: entry.apiSecret };
+          }
+        } catch {}
+      }
+      if (!creds) {
+        const url = process.env[`LIVEKIT_URL_${normalizedExplicit}`];
+        const apiKey = process.env[`LIVEKIT_API_KEY_${normalizedExplicit}`];
+        const apiSecret = process.env[`LIVEKIT_API_SECRET_${normalizedExplicit}`];
+        if (url && apiKey && apiSecret) creds = { url, apiKey, apiSecret };
+      }
+    }
+
+    // If no explicit key, resolve by voice+language or voice-only
+    if (!creds) creds = getCredentialsFor(voice, language);
+
+    if (!creds) {
+      console.error('No LiveKit credentials found for voice/language:', voice, language);
+      return NextResponse.json(
+        { error: 'LiveKit credentials not configured for requested voice/language' },
+        { status: 500 }
+      );
+    }
+
+    // Create token with chosen credentials
     const participantToken = await createParticipantToken(
       {
         identity,
         name: participantName,
-        metadata: new_metadata,
-        attributes: {language: 'yue'}
-        //...(metadata ? { metadata } : {}),
-        //...(attributes ? ({ attributes } as any) : {}),
+        ...(finalMetadata ? { metadata: finalMetadata } : {}),
+        attributes,
       },
       roomName,
-      agentName
+      agentName,
+      creds.apiKey,
+      creds.apiSecret
     );
 
     const data: ConnectionDetails = {
-      serverUrl: LIVEKIT_URL,
+      serverUrl: creds.url,
       roomName,
       participantToken,
       participantName,
@@ -139,7 +286,6 @@ export async function POST(req: Request) {
     });
     return NextResponse.json(data, { headers });
   } catch (error) {
-    // 统一返回 JSON 错误，避免前端 parse 错误导致 uncaught exception
     const msg = error instanceof Error ? error.message : 'internal error';
     console.error('POST /api/connection-details error:', error);
     return NextResponse.json({ error: msg }, { status: 500 });
@@ -149,9 +295,11 @@ export async function POST(req: Request) {
 function createParticipantToken(
   userInfo: AccessTokenOptions,
   roomName: string,
-  agentName?: string
+  agentName: string | undefined,
+  apiKey: string,
+  apiSecret: string
 ): Promise<string> {
-  const at = new AccessToken(API_KEY!, API_SECRET!, {
+  const at = new AccessToken(apiKey, apiSecret, {
     ...userInfo,
     ttl: '15m',
   });

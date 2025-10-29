@@ -1,10 +1,10 @@
 'use client';
 
+import LoginGate from '@/components/LoginGate';
 import { useEffect, useMemo, useState } from 'react';
 import { Room, RoomEvent } from 'livekit-client';
 import { motion } from 'motion/react';
 import { RoomAudioRenderer, RoomContext, StartAudio } from '@livekit/components-react';
-import LoginGate from '@/components/LoginGate';
 import { toastAlert } from '@/components/alert-toast';
 import { SessionView } from '@/components/session-view';
 import { Toaster } from '@/components/ui/sonner';
@@ -23,18 +23,22 @@ export function App({ appConfig }: AppProps) {
   const room = useMemo(() => new Room(), []);
   const [sessionStarted, setSessionStarted] = useState(false);
 
+  // participantDisplay: 用于 UI（中文）
   const [participantDisplay, setParticipantDisplay] = useState<string>('user');
+  // participantCode: 发送给后端的英文 code（voice）
   const [participantCode, setParticipantCode] = useState<string>('user');
 
+  // languageDisplay: UI 显示（中文）
   const [languageDisplay, setLanguageDisplay] = useState<string>('普通话');
+  // languageCode: 发送给后端的英文 code
   const [languageCode, setLanguageCode] = useState<string>('mandarin');
 
-  const { refreshConnectionDetails, existingOrRefreshConnectionDetails } =
-    useConnectionDetails(appConfig);
+  const { refreshConnectionDetails, existingOrRefreshConnectionDetails } = useConnectionDetails(appConfig);
 
   useEffect(() => {
     const onDisconnected = () => {
       setSessionStarted(false);
+      // refresh token using last params saved in hook (no-op if none)
       refreshConnectionDetails().catch(() => {});
     };
     const onMediaDevicesError = (error: Error) => {
@@ -51,17 +55,20 @@ export function App({ appConfig }: AppProps) {
     };
   }, [room, refreshConnectionDetails]);
 
+  // Welcome 回调签名：displayName, displayLanguage, nameCode, languageCode
   const handleStartCall = (
     displayName: string,
     displayLanguage: string,
     nameCode: string,
     langCode: string
   ) => {
+    // 更新 UI 显示与后端发送用的 code
     setParticipantDisplay(displayName || 'user');
     setParticipantCode(nameCode || 'user');
     setLanguageDisplay(displayLanguage || '普通话');
     setLanguageCode(langCode || 'mandarin');
 
+    // 兼容旧字段（可视需要保留）
     try {
       (appConfig as any).startButtonText = displayName ?? (appConfig as any).startButtonText;
     } catch {}
@@ -76,6 +83,8 @@ export function App({ appConfig }: AppProps) {
         room.localParticipant.setMicrophoneEnabled(true, undefined, {
           preConnectBuffer: appConfig.isPreConnectBufferEnabled,
         }),
+        // 把 displayName（中文）作为 participantName（前端可见），
+        // 把 participantCode 与 languageCode 发送给后端作为 voice / language
         existingOrRefreshConnectionDetails({
           participantName: participantDisplay,
           language: languageCode,
@@ -106,7 +115,6 @@ export function App({ appConfig }: AppProps) {
     participantDisplay,
     participantCode,
     languageCode,
-    appConfig,
   ]);
 
   const startLeft = (appConfig as any).startButtonTextLeft ?? '禹亭';
@@ -129,6 +137,7 @@ export function App({ appConfig }: AppProps) {
         <RoomContext.Provider value={room}>
           <RoomAudioRenderer />
           <StartAudio label="Start Audio" />
+          {/* --- */}
           <MotionSessionView
             key="session-view"
             appConfig={appConfig}

@@ -1,10 +1,10 @@
 'use client';
 
+import LoginGate from '@/components/LoginGate';
 import { useEffect, useMemo, useState } from 'react';
 import { Room, RoomEvent } from 'livekit-client';
 import { motion } from 'motion/react';
 import { RoomAudioRenderer, RoomContext, StartAudio } from '@livekit/components-react';
-import LoginGate from '@/components/LoginGate';
 import { toastAlert } from '@/components/alert-toast';
 import { SessionView } from '@/components/session-view';
 import { Toaster } from '@/components/ui/sonner';
@@ -22,20 +22,13 @@ interface AppProps {
 export function App({ appConfig }: AppProps) {
   const room = useMemo(() => new Room(), []);
   const [sessionStarted, setSessionStarted] = useState(false);
-
-  const [participantDisplay, setParticipantDisplay] = useState<string>('user');
-  const [participantCode, setParticipantCode] = useState<string>('user');
-
-  const [languageDisplay, setLanguageDisplay] = useState<string>('普通话');
-  const [languageCode, setLanguageCode] = useState<string>('mandarin');
-
   const { refreshConnectionDetails, existingOrRefreshConnectionDetails } =
     useConnectionDetails(appConfig);
 
   useEffect(() => {
     const onDisconnected = () => {
       setSessionStarted(false);
-      refreshConnectionDetails().catch(() => {});
+      refreshConnectionDetails();
     };
     const onMediaDevicesError = (error: Error) => {
       toastAlert({
@@ -51,24 +44,6 @@ export function App({ appConfig }: AppProps) {
     };
   }, [room, refreshConnectionDetails]);
 
-  const handleStartCall = (
-    displayName: string,
-    displayLanguage: string,
-    nameCode: string,
-    langCode: string
-  ) => {
-    setParticipantDisplay(displayName || 'user');
-    setParticipantCode(nameCode || 'user');
-    setLanguageDisplay(displayLanguage || '普通话');
-    setLanguageCode(langCode || 'mandarin');
-
-    try {
-      (appConfig as any).startButtonText = displayName ?? (appConfig as any).startButtonText;
-    } catch {}
-
-    setSessionStarted(true);
-  };
-
   useEffect(() => {
     let aborted = false;
     if (sessionStarted && room.state === 'disconnected') {
@@ -76,17 +51,19 @@ export function App({ appConfig }: AppProps) {
         room.localParticipant.setMicrophoneEnabled(true, undefined, {
           preConnectBuffer: appConfig.isPreConnectBufferEnabled,
         }),
-        existingOrRefreshConnectionDetails({
-          participantName: participantDisplay,
-          language: languageCode,
-          voice: participantCode,
-          room: '123',
-          agentName: appConfig.agentName,
-        }).then((connectionDetails) =>
+        existingOrRefreshConnectionDetails().then((connectionDetails) =>
           room.connect(connectionDetails.serverUrl, connectionDetails.participantToken)
         ),
       ]).catch((error) => {
-        if (aborted) return;
+        if (aborted) {
+          // Once the effect has cleaned up after itself, drop any errors
+          //
+          // These errors are likely caused by this effect rerunning rapidly,
+          // resulting in a previous run `disconnect` running in parallel with
+          // a current run `connect`
+          return;
+        }
+
         toastAlert({
           title: 'There was an error connecting to the agent',
           description: `${error.name}: ${error.message}`,
@@ -97,29 +74,17 @@ export function App({ appConfig }: AppProps) {
       aborted = true;
       room.disconnect();
     };
-  }, [
-    room,
-    sessionStarted,
-    appConfig.isPreConnectBufferEnabled,
-    appConfig.agentName,
-    existingOrRefreshConnectionDetails,
-    participantDisplay,
-    participantCode,
-    languageCode,
-    appConfig,
-  ]);
+  }, [room, sessionStarted, appConfig.isPreConnectBufferEnabled]);
 
-  const startLeft = (appConfig as any).startButtonTextLeft ?? '禹亭';
-  const startRight = (appConfig as any).startButtonTextRight ?? '小白';
+  const { startButtonText } = appConfig;
 
   return (
     <LoginGate>
       <main>
         <MotionWelcome
           key="welcome"
-          startButtonTextLeft={startLeft}
-          startButtonTextRight={startRight}
-          onStartCall={handleStartCall}
+          startButtonText={startButtonText}
+          onStartCall={() => setSessionStarted(true)}
           disabled={sessionStarted}
           initial={{ opacity: 1 }}
           animate={{ opacity: sessionStarted ? 0 : 1 }}
@@ -129,6 +94,7 @@ export function App({ appConfig }: AppProps) {
         <RoomContext.Provider value={room}>
           <RoomAudioRenderer />
           <StartAudio label="Start Audio" />
+          {/* --- */}
           <MotionSessionView
             key="session-view"
             appConfig={appConfig}

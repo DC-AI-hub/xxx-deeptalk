@@ -35,7 +35,10 @@ function parseCookie(header: string | null): Record<string, string> {
 export async function GET(req: Request) {
   try {
     if (!MYSQL_HOST || !MYSQL_USER || !MYSQL_DATABASE) {
-      return NextResponse.json({ error: 'MySQL configuration missing (MYSQL_HOST/MYSQL_USER/MYSQL_DATABASE).' }, { status: 500 });
+      return NextResponse.json(
+        { error: 'MySQL configuration missing (MYSQL_HOST/MYSQL_USER/MYSQL_DATABASE).' },
+        { status: 500 }
+      );
     }
 
     const cookies = parseCookie(req.headers.get('cookie'));
@@ -49,7 +52,9 @@ export async function GET(req: Request) {
     // fetch name for display (optional; you could skip the query and just return uid)
     const conn = await pool.getConnection();
     try {
-      const [rows] = await conn.execute('SELECT name FROM user_table WHERE uuid = ? LIMIT 1', [uid]);
+      const [rows] = await conn.execute('SELECT name FROM user_table WHERE uuid = ? LIMIT 1', [
+        uid,
+      ]);
       const arr = rows as Array<{ name: string }>;
       const name = arr.length > 0 ? arr[0].name : '';
       return NextResponse.json({ ok: true, uuid: uid, name });

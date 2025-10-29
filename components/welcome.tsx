@@ -60,7 +60,7 @@ export const Welcome = ({
       ref={ref as any}
       inert={disabled}
       className={cn(
-        'bg-background fixed inset-0 mx-auto flex min-h-screen flex-col items-center justify-center text-center p-4',
+        'bg-background fixed inset-0 mx-auto flex min-h-screen flex-col items-center justify-center p-4 text-center',
         disabled ? 'z-10' : 'z-20'
       )}
     >
@@ -72,7 +72,10 @@ export const Welcome = ({
         xmlns="http://www.w3.org/2000/svg"
         className="text-fg0 mb-4 size-16"
       >
-        <path d="M32 4C17.664 4 6 15.664 6 30s11.664 26 26 26 26-11.664 26-26S46.336 4 32 4z" fill="currentColor" />
+        <path
+          d="M32 4C17.664 4 6 15.664 6 30s11.664 26 26 26 26-11.664 26-26S46.336 4 32 4z"
+          fill="currentColor"
+        />
       </svg>
 
       <p className="text-fg1 max-w-prose pt-1 leading-6 font-medium">
@@ -80,32 +83,48 @@ export const Welcome = ({
       </p>
 
       {/* 主容器：始终两列，小尺寸为小卡片 */}
-      <div className="mt-5 w-full flex justify-center">
+      <div className="mt-5 flex w-full justify-center">
         <div className="w-full max-w-[520px]">
-          <div className="grid grid-cols-2 gap-4 items-start justify-items-center">
-            <div className="flex flex-col items-center" style={{ ['--card-size' as any]: 'clamp(64px,18vw,96px)' }}>
-              <div className="w-[--card-size] aspect-square overflow-hidden rounded-xl bg-muted shadow-sm">
-                <img src="/yuting.jpg" alt="禹亭" className="w-full h-full object-cover" loading="lazy" />
+          <div className="grid grid-cols-2 items-start justify-items-center gap-4">
+            <div
+              className="flex flex-col items-center"
+              style={{ ['--card-size' as any]: 'clamp(64px,18vw,96px)' }}
+            >
+              <div className="bg-muted aspect-square w-[--card-size] overflow-hidden rounded-xl shadow-sm">
+                <img
+                  src="/yuting.jpg"
+                  alt="禹亭"
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
               </div>
               <Button
                 variant="primary"
                 size="sm"
                 onClick={() => handleStart(startButtonTextLeft ?? '禹亭')}
-                className="w-[--card-size] mt-2 font-mono"
+                className="mt-2 w-[--card-size] font-mono"
               >
                 {startButtonTextLeft ?? '禹亭'}
               </Button>
             </div>
 
-            <div className="flex flex-col items-center" style={{ ['--card-size' as any]: 'clamp(64px,18vw,96px)' }}>
-              <div className="w-[--card-size] aspect-square overflow-hidden rounded-xl bg-muted shadow-sm">
-                <img src="/xiaobai.jpg" alt="小白" className="w-full h-full object-cover" loading="lazy" />
+            <div
+              className="flex flex-col items-center"
+              style={{ ['--card-size' as any]: 'clamp(64px,18vw,96px)' }}
+            >
+              <div className="bg-muted aspect-square w-[--card-size] overflow-hidden rounded-xl shadow-sm">
+                <img
+                  src="/xiaobai.jpg"
+                  alt="小白"
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
               </div>
               <Button
                 variant="primary"
                 size="sm"
                 onClick={() => handleStart(startButtonTextRight ?? '小白')}
-                className="w-[--card-size] mt-2 font-mono"
+                className="mt-2 w-[--card-size] font-mono"
               >
                 {startButtonTextRight ?? '小白'}
               </Button>
@@ -117,7 +136,7 @@ export const Welcome = ({
             <select
               value={languageDisplay}
               onChange={(e) => setLanguageDisplay(e.target.value)}
-              className="rounded border px-3 py-2 bg-background text-fg1"
+              className="bg-background text-fg1 rounded border px-3 py-2"
               aria-label="选择语言"
             >
               <option value="普通话">普通话</option>
@@ -131,7 +150,12 @@ export const Welcome = ({
       <footer className="fixed bottom-5 left-0 z-20 flex w-full items-center justify-center">
         <p className="text-fg1 max-w-prose pt-1 text-xs leading-5 font-normal text-pretty md:text-sm">
           需要重新登录？请跳转至{' '}
-          <a target="_blank" rel="noopener noreferrer" href="https://deeptalk.dingchicrm.com" className="underline">
+          <a
+            target="_blank"
+            rel="noopener noreferrer"
+            href="https://deeptalk.dingchicrm.com"
+            className="underline"
+          >
             Yue Voice AI quickstart
           </a>
           .

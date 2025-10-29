@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import mysql from 'mysql2/promise';
 import { createHash } from 'crypto';
+import mysql from 'mysql2/promise';
 import { signUid } from '../../../lib/uid-sign';
 
 const MYSQL_HOST = process.env.MYSQL_HOST;
@@ -29,10 +29,13 @@ function isEmail(s: string) {
 export async function POST(req: Request) {
   try {
     if (!MYSQL_HOST || !MYSQL_USER || !MYSQL_DATABASE) {
-      return NextResponse.json({ error: 'MySQL configuration missing (MYSQL_HOST/MYSQL_USER/MYSQL_DATABASE).' }, { status: 500 });
+      return NextResponse.json(
+        { error: 'MySQL configuration missing (MYSQL_HOST/MYSQL_USER/MYSQL_DATABASE).' },
+        { status: 500 }
+      );
     }
 
-    const body = await req.json().catch(() => ({} as any));
+    const body = await req.json().catch(() => ({}) as any);
     const username: string = (body?.username || '').trim();
     const password: string = (body?.password || '').trim();
 

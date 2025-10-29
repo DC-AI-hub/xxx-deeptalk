@@ -2,13 +2,12 @@ import { Public_Sans } from 'next/font/google';
 import localFont from 'next/font/local';
 import { headers } from 'next/headers';
 import { APP_CONFIG_DEFAULTS } from '@/app-config';
-import { ApplyThemeScript, ThemeToggle } from '@/components/theme-toggle';
-import { getAppConfig } from '@/lib/utils';
-import './globals.css';
-
 // 新增：AuthProvider（client component）
 // 确保你已在项目中添加 components/AuthProvider.tsx 并 export { AuthProvider }
 import { AuthProvider } from '@/components/AuthProvider';
+import { ApplyThemeScript, ThemeToggle } from '@/components/theme-toggle';
+import { getAppConfig } from '@/lib/utils';
+import './globals.css';
 
 const publicSans = Public_Sans({
   variable: '--font-public-sans',

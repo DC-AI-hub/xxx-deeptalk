@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import React from "react";
-import { useAuth } from "./AuthProvider";
-import LoginModal from "./LoginModal";
+import React from 'react';
+import { useAuth } from './AuthProvider';
+import LoginModal from './LoginModal';
 
 export default function LoginGate({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -10,7 +10,7 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
   // 初始化状态时可显示骨架屏
   if (loading) {
     return (
-      <div style={{ padding: 24, textAlign: "center" }}>
+      <div style={{ padding: 24, textAlign: 'center' }}>
         <div>初始化中...</div>
       </div>
     );
